@@ -1,0 +1,1146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cephalometric Radiograph Analysis Dashboard</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-color: #0b0f17;
+            --card-bg: #141b27;
+            --card-border: #222d3d;
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --primary: #3b82f6;
+            --primary-glow: rgba(59, 130, 246, 0.15);
+            --accent: #10b981;
+            --accent-glow: rgba(16, 185, 129, 0.15);
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --radius-lg: 12px;
+            --radius-md: 8px;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            line-height: 1.5;
+            padding: 24px;
+            min-height: 100vh;
+        }
+
+        /* Layout */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 24px;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--card-border);
+        }
+
+        .header-title h1 {
+            font-size: 24px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #60a5fa, #3b82f6, #1d4ed8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header-title p {
+            font-size: 14px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        .system-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            padding: 8px 16px;
+            border-radius: 30px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: var(--text-muted);
+            box-shadow: 0 0 8px var(--text-muted);
+        }
+
+        .status-dot.active {
+            background-color: var(--primary);
+            box-shadow: 0 0 12px var(--primary);
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.completed {
+            background-color: var(--accent);
+            box-shadow: 0 0 12px var(--accent);
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.2); opacity: 0.6; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 24px;
+        }
+
+        @media (max-width: 1024px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Sidebar Panels */
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        /* Card Styles */
+        .card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: var(--radius-lg);
+            padding: 20px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+            transition: var(--transition);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            border-bottom: 1px solid var(--card-border);
+            padding-bottom: 10px;
+        }
+
+        .card-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Architecture Modules Layout */
+        .modules-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .module-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 12px;
+            border-radius: var(--radius-md);
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid transparent;
+            transition: var(--transition);
+        }
+
+        .module-item.enabled {
+            border-color: rgba(59, 130, 246, 0.2);
+            background: rgba(59, 130, 246, 0.04);
+        }
+
+        .module-name {
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .module-badge {
+            font-size: 11px;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 12px;
+            text-transform: uppercase;
+        }
+
+        .module-badge.enabled {
+            background-color: rgba(16, 185, 129, 0.1);
+            color: var(--accent);
+        }
+
+        .module-badge.disabled {
+            background-color: rgba(239, 68, 68, 0.1);
+            color: var(--danger);
+        }
+
+        /* Buttons */
+        .btn {
+            font-family: inherit;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 16px;
+            border-radius: var(--radius-md);
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: var(--transition);
+            width: 100%;
+        }
+
+        .btn-primary {
+            background-color: var(--primary);
+            color: #fff;
+            box-shadow: 0 4px 14px rgba(59, 130, 246, 0.3);
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background-color: #2563eb;
+            transform: translateY(-1px);
+        }
+
+        .btn-danger {
+            background-color: rgba(239, 68, 68, 0.1);
+            border-color: rgba(239, 68, 68, 0.3);
+            color: var(--danger);
+        }
+
+        .btn-danger:hover:not(:disabled) {
+            background-color: var(--danger);
+            color: #fff;
+            box-shadow: 0 4px 14px rgba(239, 68, 68, 0.3);
+            transform: translateY(-1px);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Main Workspace Panels */
+        .workspace {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 12px;
+            border-bottom: 1px solid var(--card-border);
+            padding-bottom: 12px;
+        }
+
+        .tab-btn {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            padding: 6px 16px;
+            border-radius: 20px;
+            transition: var(--transition);
+        }
+
+        .tab-btn:hover {
+            color: var(--text-main);
+        }
+
+        .tab-btn.active {
+            background-color: var(--primary-glow);
+            color: var(--primary);
+            border: 1px solid rgba(59, 130, 246, 0.2);
+        }
+
+        .tab-content {
+            display: none;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .tab-content.active {
+            display: flex;
+        }
+
+        /* Training History and Console Row */
+        .charts-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+
+        @media (max-width: 768px) {
+            .charts-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .chart-box {
+            position: relative;
+            height: 250px;
+            width: 100%;
+        }
+
+        /* Console Log Box */
+        .console-box {
+            background-color: #05070a;
+            border: 1px solid var(--card-border);
+            border-radius: var(--radius-md);
+            padding: 14px;
+            height: 200px;
+            overflow-y: auto;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            color: #a7f3d0;
+            white-space: pre-wrap;
+            box-shadow: inset 0 2px 8px rgba(0,0,0,0.8);
+        }
+
+        /* Inference File Upload Box */
+        .upload-zone {
+            border: 2px dashed var(--card-border);
+            border-radius: var(--radius-lg);
+            padding: 40px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: var(--transition);
+            background: rgba(255, 255, 255, 0.01);
+            position: relative;
+        }
+
+        .upload-zone:hover {
+            border-color: var(--primary);
+            background: rgba(59, 130, 246, 0.02);
+        }
+
+        .upload-icon {
+            font-size: 40px;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+        }
+
+        .upload-zone input {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        /* Prediction Results Grid */
+        .prediction-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+
+        @media (max-width: 900px) {
+            .prediction-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .images-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .image-view-box {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .image-card {
+            border: 1px solid var(--card-border);
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            background: #000;
+            aspect-ratio: 1/1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .image-card img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .image-label {
+            position: absolute;
+            bottom: 8px;
+            left: 8px;
+            background: rgba(0,0,0,0.7);
+            color: #fff;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        /* Probability Bars */
+        .prob-row {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: 14px;
+        }
+
+        .prob-item {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .prob-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .prob-bar-bg {
+            width: 100%;
+            height: 8px;
+            background-color: var(--card-border);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .prob-bar-fill {
+            height: 100%;
+            background-color: var(--primary);
+            border-radius: 4px;
+            transition: width 0.5s ease-out;
+            width: 0%;
+        }
+
+        .prob-bar-fill.high {
+            background-color: var(--accent);
+        }
+
+        /* Metrics Grid Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+        }
+
+        @media (max-width: 768px) {
+            .stats-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        .stat-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: var(--radius-md);
+            padding: 16px;
+            text-align: center;
+        }
+
+        .stat-val {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--text-main);
+            margin-top: 4px;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+
+        /* Tables & Config inputs */
+        .cfg-input {
+            width: 80px;
+            background: #0f141c;
+            border: 1px solid var(--card-border);
+            border-radius: 4px;
+            color: var(--text-main);
+            padding: 4px 8px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            text-align: right;
+            outline: none;
+            transition: var(--transition);
+        }
+        .cfg-input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 6px var(--primary-glow);
+        }
+        .cfg-table td {
+            vertical-align: middle;
+            padding: 6px 12px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        th, td {
+            padding: 8px 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--card-border);
+        }
+
+        th {
+            font-weight: 600;
+            color: var(--text-muted);
+        }
+
+        /* Custom UI Micro-animations */
+        .spinner {
+            width: 18px;
+            height: 18px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 0.8s linear infinite;
+            display: none;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <!-- Header -->
+    <header>
+        <div class="header-title">
+            <h1>Cephalometric Analysis Platform</h1>
+            <p>Production Inference & Proposed Model Trainer</p>
+        </div>
+        <div class="system-status">
+            <div id="statusDot" class="status-dot"></div>
+            <span id="statusText">Checking system status...</span>
+        </div>
+    </header>
+
+    <!-- Main Grid -->
+    <div class="main-grid">
+        <!-- Sidebar config panel -->
+        <div class="sidebar">
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">Architecture Specs</div>
+                </div>
+                <div class="modules-list">
+                    <div class="module-item enabled">
+                        <span class="module-name">EfficientNetV2-S</span>
+                        <span class="module-badge enabled">Enabled</span>
+                    </div>
+                    <div class="module-item enabled" id="afemStatus">
+                        <span class="module-name">MultiScale AFEM</span>
+                        <span class="module-badge enabled">Enabled</span>
+                    </div>
+                    <div class="module-item enabled" id="cffmStatus">
+                        <span class="module-name">CFFM (Fuzzy Scale)</span>
+                        <span class="module-badge enabled">Enabled</span>
+                    </div>
+                    <div class="module-item enabled" id="acamStatus">
+                        <span class="module-name">ACAM Attention</span>
+                        <span class="module-badge enabled">Enabled</span>
+                    </div>
+                    <div class="module-item enabled" id="grlmStatus">
+                        <span class="module-name">GRLM Compression</span>
+                        <span class="module-badge enabled">Enabled</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Parameters specs card -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">Hyperparameters</div>
+                </div>
+                <table class="cfg-table" style="width: 100%;">
+                    <tr>
+                        <td>Epochs</td>
+                        <td style="text-align: right;">
+                            <input type="number" id="inputEpochs" class="cfg-input" min="1" max="1000" value="30">
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Batch Size</td>
+                        <td style="text-align: right;">
+                            <input type="number" id="inputBatchSize" class="cfg-input" min="1" max="128" value="8">
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Learning Rate</td>
+                        <td style="text-align: right;">
+                            <input type="text" id="inputLR" class="cfg-input" style="width: 100px;" value="1e-3">
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Patience</td>
+                        <td style="text-align: right;">
+                            <input type="number" id="inputPatience" class="cfg-input" min="1" max="100" value="7">
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Phase 1 Epochs</td>
+                        <td style="text-align: right;">
+                            <input type="number" id="inputPhase1" class="cfg-input" min="1" max="500" value="10">
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Phase 2 Epochs</td>
+                        <td style="text-align: right;">
+                            <input type="number" id="inputPhase2" class="cfg-input" min="1" max="500" value="20">
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <!-- Main Workspace -->
+        <div class="workspace">
+            <div class="tabs">
+                <button class="tab-btn active" onclick="switchTab('training')">Training Dashboard</button>
+                <button class="tab-btn" onclick="switchTab('inference')">Clinical Inference</button>
+            </div>
+
+            <!-- TAB 1: TRAINING DASHBOARD -->
+            <div id="tab-training" class="tab-content active">
+                <div style="display: flex; gap: 16px;">
+                    <button id="btnStart" class="btn btn-primary" onclick="startTraining()">
+                        <div id="btnStartSpinner" class="spinner"></div>
+                        <span id="btnStartText">Start Training</span>
+                    </button>
+                    <button id="btnStop" class="btn btn-danger" onclick="stopTraining()" disabled>Stop Training</button>
+                </div>
+
+                <!-- Training stats quick view -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-label">Current Epoch</div>
+                        <div id="statEpoch" class="stat-val">0 / 30</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Val Macro F1</div>
+                        <div id="statF1" class="stat-val">0.00%</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Val Accuracy</div>
+                        <div id="statAcc" class="stat-val">0.00%</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Learning Rate</div>
+                        <div id="statLr" class="stat-val">0.000000</div>
+                    </div>
+                </div>
+
+                <!-- Charts row -->
+                <div class="charts-row">
+                    <div class="card">
+                        <div class="card-header"><div class="card-title">Loss Trend</div></div>
+                        <div class="chart-box">
+                            <canvas id="lossChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header"><div class="card-title">Accuracy & F1 Trend</div></div>
+                        <div class="chart-box">
+                            <canvas id="accuracyChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Real-time Console Log -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">System Console output</div>
+                    </div>
+                    <div id="consoleLog" class="console-box">Initializing logger...</div>
+                </div>
+            </div>
+
+            <!-- TAB 2: INFERENCE -->
+            <div id="tab-inference" class="tab-content">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">Upload Röntgen Image</div>
+                    </div>
+                    <div class="upload-zone">
+                        <div class="upload-icon">📁</div>
+                        <h3>Drag and drop file here</h3>
+                        <p style="color: var(--text-muted); font-size: 13px; margin-top: 4px;">Supports JPG, PNG, BMP formats</p>
+                        <input type="file" id="imageInput" accept="image/*" onchange="runInference()">
+                    </div>
+                </div>
+
+                <!-- Inference Results -->
+                <div class="prediction-row" id="inferenceResultPanel" style="display: none;">
+                    <!-- Images -->
+                    <div class="images-panel">
+                        <div class="card">
+                            <div class="card-header"><div class="card-title">Side-by-Side Images</div></div>
+                            <div class="image-view-box">
+                                <div class="image-card">
+                                    <img id="origImg" src="" alt="Original">
+                                    <span class="image-label">Original</span>
+                                </div>
+                                <div class="image-card">
+                                    <img id="enhancedImg" src="" alt="Enhanced">
+                                    <span class="image-label">Enhanced (ImageEnhancement)</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Result info card -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">Classification Output</div>
+                        </div>
+                        
+                        <div style="text-align: center; padding: 12px 0;">
+                            <div style="font-size: 12px; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Model Prediction</div>
+                            <div id="predClassName" style="font-size: 32px; font-weight: 700; color: var(--accent); margin-top: 4px;">Sınıf 1</div>
+                            <div style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">Predicted Class Index: <span id="predClassIdx">0</span></div>
+                        </div>
+
+                        <div class="prob-row">
+                            <div class="prob-item">
+                                <div class="prob-labels">
+                                    <span>Prediction Confidence</span>
+                                    <span id="predConfText">0.0%</span>
+                                </div>
+                                <div class="prob-bar-bg">
+                                    <div id="predConfBar" class="prob-bar-fill high" style="width: 0%;"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr style="border: 0; border-top: 1px solid var(--card-border); margin: 20px 0;">
+
+                        <div class="card-title" style="margin-bottom: 12px; font-size: 14px;">Class Probabilities</div>
+                        <div id="probBarsList" style="display: flex; flex-direction: column; gap: 12px;">
+                            <!-- Dynamically loaded -->
+                        </div>
+
+                        <hr style="border: 0; border-top: 1px solid var(--card-border); margin: 20px 0;">
+
+                        <div class="card-title" style="margin-bottom: 12px; font-size: 14px;">GRLM Feature Embedding</div>
+                        <table style="width: 100%; font-size: 13px;">
+                            <tr>
+                                <td>Dimension</td>
+                                <td id="embedShape" style="text-align: right; font-weight: 600;">N/A</td>
+                            </tr>
+                            <tr>
+                                <td>L2 Norm</td>
+                                <td id="embedNorm" style="text-align: right; font-weight: 600;">N/A</td>
+                            </tr>
+                            <tr>
+                                <td>First 5 Elements</td>
+                                <td id="embedVals" style="text-align: right; font-family: monospace; font-size: 11px;">N/A</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Tab switching
+    function switchTab(tabId) {
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+        
+        event.currentTarget.classList.add('active');
+        document.getElementById(`tab-${tabId}`).classList.add('active');
+    }
+
+    // Dynamic configuration loading
+    async function loadConfig() {
+        try {
+            const res = await fetch('/api/config');
+            const data = await res.json();
+            
+            // Populate config input fields
+            document.getElementById('inputEpochs').value = data.training.epochs;
+            document.getElementById('inputBatchSize').value = data.training.batch_size;
+            document.getElementById('inputLR').value = data.training.learning_rate;
+            document.getElementById('inputPatience').value = data.training.early_stopping_patience;
+
+            // Set ablation statuses
+            updateAblationBadge('afemStatus', data.ablation.use_afem);
+            updateAblationBadge('cffmStatus', data.ablation.use_cffm);
+            updateAblationBadge('acamStatus', data.ablation.use_acam);
+            updateAblationBadge('grlmStatus', data.ablation.use_grlm);
+        } catch (e) {
+            console.error('Failed to load configuration:', e);
+        }
+    }
+
+    function updateAblationBadge(id, enabled) {
+        const item = document.getElementById(id);
+        const badge = item.querySelector('.module-badge');
+        if (enabled) {
+            item.classList.add('enabled');
+            badge.innerText = 'Enabled';
+            badge.className = 'module-badge enabled';
+        } else {
+            item.classList.remove('enabled');
+            badge.innerText = 'Disabled';
+            badge.className = 'module-badge disabled';
+        }
+    }
+
+    // Charts setup
+    let lossChart, accuracyChart;
+    
+    function initCharts() {
+        const lossCtx = document.getElementById('lossChart').getContext('2d');
+        lossChart = new Chart(lossCtx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [
+                    { label: 'Train Loss', data: [], borderColor: '#3b82f6', tension: 0.1, fill: false },
+                    { label: 'Val Loss', data: [], borderColor: '#f59e0b', tension: 0.1, fill: false }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { ticks: { color: '#9ca3af' }, grid: { color: '#222d3d' } },
+                    y: { ticks: { color: '#9ca3af' }, grid: { color: '#222d3d' } }
+                },
+                plugins: { legend: { labels: { color: '#f3f4f6' } } }
+            }
+        });
+
+        const accCtx = document.getElementById('accuracyChart').getContext('2d');
+        accuracyChart = new Chart(accCtx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [
+                    { label: 'Val Accuracy', data: [], borderColor: '#10b981', tension: 0.1, fill: false },
+                    { label: 'Val Macro F1', data: [], borderColor: '#8b5cf6', tension: 0.1, fill: false }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { ticks: { color: '#9ca3af' }, grid: { color: '#222d3d' } },
+                    y: { ticks: { color: '#9ca3af' }, grid: { color: '#222d3d' } }
+                },
+                plugins: { legend: { labels: { color: '#f3f4f6' } } }
+            }
+        });
+    }
+
+    // Update charts data
+    function updateCharts(data) {
+        lossChart.data.labels = data.epochs;
+        lossChart.data.datasets[0].data = data.train_loss;
+        lossChart.data.datasets[1].data = data.val_loss;
+        lossChart.update();
+
+        accuracyChart.data.labels = data.epochs;
+        accuracyChart.data.datasets[0].data = data.val_accuracy;
+        accuracyChart.data.datasets[1].data = data.val_f1;
+        accuracyChart.update();
+    }
+
+    // Start training
+    async function startTraining() {
+        const btn = document.getElementById('btnStart');
+        const spinner = document.getElementById('btnStartSpinner');
+        const text = document.getElementById('btnStartText');
+        
+        btn.disabled = true;
+        spinner.style.display = 'inline-block';
+        text.innerText = 'Initializing...';
+
+        // Gather hyperparameter values from inputs
+        const epochs = parseInt(document.getElementById('inputEpochs').value);
+        const batch_size = parseInt(document.getElementById('inputBatchSize').value);
+        const learning_rate = parseFloat(document.getElementById('inputLR').value);
+        const early_stopping_patience = parseInt(document.getElementById('inputPatience').value);
+        const phase1 = parseInt(document.getElementById('inputPhase1').value);
+        const phase2 = parseInt(document.getElementById('inputPhase2').value);
+
+        const payload = {
+            epochs,
+            batch_size,
+            learning_rate,
+            early_stopping_patience,
+            phase1,
+            phase2
+        };
+
+        try {
+            const res = await fetch('/api/train/start', { 
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            if (data.status === 'success') {
+                document.getElementById('btnStop').disabled = false;
+            } else {
+                alert(data.message);
+                btn.disabled = false;
+                spinner.style.display = 'none';
+                text.innerText = 'Start Training';
+            }
+        } catch (e) {
+            alert('Failed to launch training process.');
+            btn.disabled = false;
+            spinner.style.display = 'none';
+            text.innerText = 'Start Training';
+        }
+    }
+
+    // Stop training
+    async function stopTraining() {
+        if (!confirm('Are you sure you want to stop training?')) return;
+        
+        const btn = document.getElementById('btnStop');
+        btn.disabled = true;
+        
+        try {
+            const res = await fetch('/api/train/stop', { method: 'POST' });
+            const data = await res.json();
+            if (data.status !== 'success') {
+                alert(data.message);
+                btn.disabled = false;
+            }
+        } catch (e) {
+            alert('Error stopping training process.');
+            btn.disabled = false;
+        }
+    }
+
+    // Status polling loop
+    async function pollStatus() {
+        try {
+            const res = await fetch('/api/train/status');
+            const data = await res.json();
+            
+            const dot = document.getElementById('statusDot');
+            const txt = document.getElementById('statusText');
+            const btnStart = document.getElementById('btnStart');
+            const btnStartText = document.getElementById('btnStartText');
+            const btnStartSpinner = document.getElementById('btnStartSpinner');
+            const btnStop = document.getElementById('btnStop');
+
+            if (data.is_running) {
+                dot.className = 'status-dot active';
+                txt.innerText = 'Training active (Epoch ' + data.current_epoch + ')';
+                
+                btnStart.disabled = true;
+                btnStartSpinner.style.display = 'inline-block';
+                btnStartText.innerText = 'Training...';
+                btnStop.disabled = false;
+            } else {
+                btnStartSpinner.style.display = 'none';
+                btnStartText.innerText = 'Start Training';
+                btnStop.disabled = true;
+
+                if (data.report_exists) {
+                    dot.className = 'status-dot completed';
+                    txt.innerText = 'System ready (Train completed)';
+                    btnStart.disabled = false;
+                } else {
+                    dot.className = 'status-dot';
+                    txt.innerText = 'System idle (Ready for training)';
+                    btnStart.disabled = false;
+                }
+            }
+
+            // Populate current stats
+            if (data.latest_metrics.train_loss !== undefined) {
+                document.getElementById('statEpoch').innerText = data.current_epoch + ' / ' + document.getElementById('inputEpochs').value;
+                document.getElementById('statF1').innerText = (data.latest_metrics.macro_f1 * 100).toFixed(2) + '%';
+                document.getElementById('statAcc').innerText = (data.latest_metrics.accuracy * 100).toFixed(2) + '%';
+                document.getElementById('statLr').innerText = data.latest_metrics.learning_rate.toFixed(6);
+            }
+        } catch (e) {
+            console.error('Status poll failed:', e);
+        }
+    }
+
+    // History polling
+    async function pollHistory() {
+        try {
+            const res = await fetch('/api/train/history');
+            const data = await res.json();
+            if (data.epochs.length > 0) {
+                updateCharts(data);
+            }
+        } catch (e) {
+            console.error('History poll failed:', e);
+        }
+    }
+
+    // Logs polling
+    async function pollLogs() {
+        try {
+            const res = await fetch('/api/train/logs');
+            const data = await res.json();
+            const logBox = document.getElementById('consoleLog');
+            const shouldScroll = logBox.scrollHeight - logBox.clientHeight <= logBox.scrollTop + 20;
+            logBox.innerText = data.logs;
+            if (shouldScroll) {
+                logBox.scrollTop = logBox.scrollHeight;
+            }
+        } catch (e) {
+            console.error('Logs poll failed:', e);
+        }
+    }
+
+    // Inference execution
+    async function runInference() {
+        const fileInput = document.getElementById('imageInput');
+        if (fileInput.files.length === 0) return;
+
+        const formData = new FormData();
+        formData.append('image', fileInput.files[0]);
+
+        // Show loading state
+        const nameLabel = document.getElementById('predClassName');
+        nameLabel.innerText = 'Analyzing...';
+        document.getElementById('inferenceResultPanel').style.display = 'block';
+
+        try {
+            const res = await fetch('/api/predict', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await res.json();
+            if (data.status === 'success') {
+                displayInferenceResult(data.result);
+            } else {
+                alert(data.message);
+                document.getElementById('inferenceResultPanel').style.display = 'none';
+            }
+        } catch (e) {
+            alert('Failed to connect to the inference engine.');
+            document.getElementById('inferenceResultPanel').style.display = 'none';
+        }
+    }
+
+    function displayInferenceResult(res) {
+        document.getElementById('origImg').src = res.orig_url;
+        document.getElementById('enhancedImg').src = res.enhanced_url || '';
+        
+        document.getElementById('predClassName').innerText = res.predicted_class_name;
+        document.getElementById('predClassIdx').innerText = res.predicted_class_index;
+        
+        // Confidence progress bar
+        const confPercent = (res.confidence * 100).toFixed(1);
+        document.getElementById('predConfText').innerText = confPercent + '%';
+        
+        const confBar = document.getElementById('predConfBar');
+        confBar.style.width = confPercent + '%';
+        if (res.confidence >= 0.7) {
+            confBar.className = 'prob-bar-fill high';
+        } else {
+            confBar.className = 'prob-bar-fill';
+        }
+
+        // Probabilities list
+        const probList = document.getElementById('probBarsList');
+        probList.innerHTML = '';
+        
+        for (const [cls, val] of Object.entries(res.class_probabilities)) {
+            const valPercent = (val * 100).toFixed(1);
+            const isHigh = cls === res.predicted_class_name;
+            
+            const itemHtml = `
+                <div class="prob-item">
+                    <div class="prob-labels">
+                        <span>${cls}</span>
+                        <span>${valPercent}%</span>
+                    </div>
+                    <div class="prob-bar-bg">
+                        <div class="prob-bar-fill ${isHigh ? 'high' : ''}" style="width: ${valPercent}%"></div>
+                    </div>
+                </div>
+            `;
+            probList.insertAdjacentHTML('beforeend', itemHtml);
+        }
+
+        // Embedding stats
+        if (res.embedding_stats) {
+            document.getElementById('embedShape').innerText = '[' + res.embedding_stats.shape.join(', ') + ']';
+            document.getElementById('embedNorm').innerText = res.embedding_stats.l2_norm.toFixed(4);
+            document.getElementById('embedVals').innerText = '[' + res.embedding_stats.first_elements.map(v => v.toFixed(4)).join(', ') + ', ...]';
+        } else {
+            document.getElementById('embedShape').innerText = 'N/A';
+            document.getElementById('embedNorm').innerText = 'N/A';
+            document.getElementById('embedVals').innerText = 'N/A';
+        }
+    }
+
+    // Initialize scripts
+    window.onload = function() {
+        loadConfig();
+        initCharts();
+        
+        // Run polling every 2 seconds
+        setInterval(() => {
+            pollStatus();
+            pollHistory();
+            pollLogs();
+        }, 2000);
+    };
+</script>
+</body>
+</html>
